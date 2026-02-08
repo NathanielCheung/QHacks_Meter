@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapView, SearchLocation, type RouteSummary, type DestinationPoint } from '@/components/MapView';
-import type { RouteStep } from '@/lib/osrm';
+import { getWalkingRoute, formatDistance, formatDuration, type RouteStep, type OSRMRouteResult } from '@/lib/osrm';
 import { Sidebar } from '@/components/Sidebar';
 import { SearchBar } from '@/components/SearchBar';
 import { ParkingChatBot } from '@/components/ParkingChatBot';
@@ -14,6 +14,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import {
   ParkingLocation,
   filterLotsByAccessibility,
+  isFreeParking,
   type AccessibilityFilterState,
 } from '@/data/parkingData';
 import { geocodeAddress } from '@/lib/geocoding';
@@ -34,6 +35,7 @@ const INITIAL_ACCESSIBILITY_FILTERS: AccessibilityFilterState = {
   evCharging: false,
   accessibleParking: false,
   minHeightClearanceM: 0,
+  freeParking: false,
 };
 
 export default function Index() {
@@ -50,6 +52,7 @@ export default function Index() {
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [routeInstructions, setRouteInstructions] = useState<RouteStep[] | null>(null);
   const [directionsSheetOpen, setDirectionsSheetOpen] = useState(false);
+  const [walkingRoute, setWalkingRoute] = useState<OSRMRouteResult | null>(null);
   const { history: searchHistory, addToHistory } = useSearchHistory();
   const { location: userGeoLocation, loading: locationLoading, error: locationError, requestLocation } = useGeolocation();
 
@@ -108,6 +111,13 @@ export default function Index() {
     setRouteConfirmed(false);
   };
 
+  const handleEndDirections = () => {
+    setRouteConfirmed(false);
+    setDirectionsSheetOpen(false);
+    setSearchLocation(null);
+    setSearchError(null);
+  };
+
   const displayStreets = searchLocation
     ? filterParkingWithinRadius(
         streets,
@@ -120,7 +130,10 @@ export default function Index() {
     ? filterParkingWithinRadius(lots, searchLocation.lat, searchLocation.lng, SEARCH_RADIUS_METERS)
     : lots;
   const displayLots = filterLotsByAccessibility(lotsAfterSearch, accessibilityFilters);
-  const displayParkingData = [...displayStreets, ...displayLots];
+  const freeOnly = accessibilityFilters.freeParking;
+  const displayStreetsShown = freeOnly ? displayStreets.filter(isFreeParking) : displayStreets;
+  const displayLotsShown = freeOnly ? displayLots.filter(isFreeParking) : displayLots;
+  const displayParkingData = [...displayStreetsShown, ...displayLotsShown];
 
   const searchTotalAvailable = displayParkingData.reduce((s, l) => s + l.availableSpots, 0);
   const searchTotalSpots = displayParkingData.reduce((s, l) => s + l.totalSpots, 0);
@@ -129,8 +142,8 @@ export default function Index() {
   const chatUserLocation = userGeoLocation ?? (searchLocation ? { lat: searchLocation.lat, lng: searchLocation.lng } : null);
 
   const sidebarProps = {
-    streets: displayStreets,
-    lots: displayLots,
+    streets: displayStreetsShown,
+    lots: displayLotsShown,
     totalAvailable: searchLocation ? searchTotalAvailable : totalAvailable,
     totalSpots: searchLocation ? searchTotalSpots : totalSpots,
     lastUpdated,
@@ -154,16 +167,34 @@ export default function Index() {
   /** On mobile, open directions sheet as soon as user requested directions (show loading until route loads) */
   const mobileDirectionsOpen = directionsSheetOpen && routeConfirmed;
 
+  // Walking route from parking spot to searched destination (turn-by-turn + line on map)
+  useEffect(() => {
+    if (!routeConfirmed || !selectedLocation || !searchLocation) {
+      setWalkingRoute(null);
+      return;
+    }
+    const from = selectedDestination ?? { lat: selectedLocation.lat, lng: selectedLocation.lng };
+    const to = { lat: searchLocation.lat, lng: searchLocation.lng };
+    let cancelled = false;
+    getWalkingRoute(from, to).then((result) => {
+      if (cancelled) return;
+      setWalkingRoute(result ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeConfirmed, selectedLocation, selectedDestination, searchLocation]);
+
   useEffect(() => {
     if (!showDirectionsPanel) setDirectionsSheetOpen(false);
   }, [showDirectionsPanel]);
 
   return (
     <div className="h-[100svh] max-h-[100dvh] flex flex-col overflow-hidden relative">
-      {/* Desktop: directions sidebar (left) + map + parking list sidebar */}
+      {/* Desktop: directions (left, only when user gets directions) + map + parking list sidebar (right) */}
       {!isMobile && (
-        <>
-          {/* Left: Directions sidebar when route is active */}
+        <div className="flex-1 flex min-h-0 min-w-0">
+          {/* Left: directions panel - only when user has requested directions */}
           {directionsPanelOpen && (
             <aside className="w-80 shrink-0 flex flex-col border-r border-border/50 glass-panel overflow-hidden animate-fade-in">
               <div className="p-4 border-b border-border/50 flex items-start justify-between gap-2">
@@ -174,6 +205,11 @@ export default function Index() {
                     </span>
                     Directions
                   </h2>
+                  {searchLocation && (
+                    <p className="text-sm text-foreground mt-1.5 break-words">
+                      {searchLocation.displayName}
+                    </p>
+                  )}
                   {routeSummary && (
                     <p className="text-sm text-muted-foreground mt-1">
                       {routeSummary.duration} • {routeSummary.distance}
@@ -183,7 +219,7 @@ export default function Index() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setDirectionsSheetOpen(false)}
+                  onClick={handleEndDirections}
                   aria-label="Close directions"
                   className="h-8 w-8 shrink-0"
                 >
@@ -192,7 +228,7 @@ export default function Index() {
               </div>
               <ul className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
                 {routeInstructions?.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
+                  <li key={`drive-${i}`} className="flex items-start gap-3 text-sm">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                       {i + 1}
                     </span>
@@ -204,7 +240,42 @@ export default function Index() {
                     </span>
                   </li>
                 ))}
+                {walkingRoute && searchLocation && (
+                  <>
+                    <li className="pt-3 mt-3 border-t border-border/50 flex flex-col gap-1">
+                      <span className="text-sm font-medium text-foreground min-w-0">
+                        {searchLocation.displayName}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDuration(walkingRoute.duration)} • {formatDistance(walkingRoute.distance)}
+                      </span>
+                    </li>
+                    {walkingRoute.steps?.map((step, i) => (
+                      <li key={`walk-${i}`} className="flex items-start gap-3 text-sm">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          {i + 1}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="text-foreground">{step.instruction}</span>
+                          {step.distance && (
+                            <span className="ml-2 text-muted-foreground">{step.distance}</span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </>
+                )}
               </ul>
+              <div className="p-4 border-t border-border/50 shrink-0">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleEndDirections}
+                  className="w-full"
+                >
+                  End directions
+                </Button>
+              </div>
             </aside>
           )}
           <div className="flex-1 flex flex-col relative min-w-0">
@@ -260,6 +331,7 @@ export default function Index() {
               userLocation={userGeoLocation}
               onRouteSummary={setRouteSummary}
               onRouteInstructions={setRouteInstructions}
+              walkingRoute={walkingRoute}
               searchRadiusMeters={SEARCH_RADIUS_METERS}
               isMobile={false}
             />
@@ -278,7 +350,7 @@ export default function Index() {
               <List className="w-5 h-5" />
             </Button>
           )}
-        </>
+        </div>
       )}
 
       <ParkingChatBot
@@ -288,29 +360,43 @@ export default function Index() {
 
       {/* Directions bottom sheet (mobile only; opens as soon as user taps Get directions) */}
       {isMobile && (
-        <Sheet open={mobileDirectionsOpen} onOpenChange={setDirectionsSheetOpen}>
+        <Sheet
+          open={mobileDirectionsOpen}
+          onOpenChange={open => {
+            setDirectionsSheetOpen(open);
+            if (!open) setRouteConfirmed(false);
+          }}
+        >
           <SheetContent
             side="bottom"
-            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/90 backdrop-blur-xl border-border/50 z-[1100]"
+            overlayClassName="z-[9998]"
+            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/90 backdrop-blur-xl border-border/50 z-[9999]"
           >
-            <div className="p-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm">
-              <h2 className="font-semibold text-foreground flex items-center gap-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
-                  <Navigation className="w-4 h-4" />
-                </span>
-                Directions
-                {routeSummary && (
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {routeSummary.duration} • {routeSummary.distance}
+            <div className="p-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-foreground flex items-center gap-2 min-w-0">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
+                    <Navigation className="w-4 h-4" />
                   </span>
-                )}
-              </h2>
+                  <span className="truncate">Directions</span>
+                  {routeSummary && (
+                    <span className="text-sm font-normal text-muted-foreground shrink-0">
+                      {routeSummary.duration} • {routeSummary.distance}
+                    </span>
+                  )}
+                </h2>
+              </div>
+              {searchLocation && (
+                <p className="text-sm text-foreground break-words">
+                  {searchLocation.displayName}
+                </p>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col bg-background/60">
               {routeInstructions?.length ? (
                 <ul className="space-y-2 scrollbar-thin">
                   {routeInstructions.map((step, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm">
+                    <li key={`drive-${i}`} className="flex items-start gap-3 text-sm">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                         {i + 1}
                       </span>
@@ -322,6 +408,31 @@ export default function Index() {
                       </span>
                     </li>
                   ))}
+                  {walkingRoute && searchLocation && (
+                    <>
+                      <li className="pt-3 mt-3 border-t border-border/50 flex flex-col gap-1">
+                        <span className="text-sm font-medium text-foreground min-w-0">
+                          {searchLocation.displayName}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {formatDuration(walkingRoute.duration)} • {formatDistance(walkingRoute.distance)}
+                        </span>
+                      </li>
+                      {walkingRoute.steps?.map((step, i) => (
+                        <li key={`walk-${i}`} className="flex items-start gap-3 text-sm">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            {i + 1}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="text-foreground">{step.instruction}</span>
+                            {step.distance && (
+                              <span className="ml-2 text-muted-foreground">{step.distance}</span>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </>
+                  )}
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground flex items-center gap-2 py-4">
@@ -330,14 +441,24 @@ export default function Index() {
                 </p>
               )}
             </div>
+            <div className="p-4 border-t border-border/50 shrink-0 bg-background/80 backdrop-blur-sm">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleEndDirections}
+                className="w-full"
+              >
+                End directions
+              </Button>
+            </div>
           </SheetContent>
         </Sheet>
       )}
 
       {/* Mobile: map full screen, locations button, directions sheet - no scroll */}
       {isMobile && (
-        <div className="flex-1 flex flex-col min-w-0 w-full min-h-0 overflow-hidden">
-          <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2">
+        <div className="flex-1 flex flex-col min-w-0 w-full min-h-0 overflow-hidden relative">
+          <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2 isolate pointer-events-none [&>*]:pointer-events-auto">
             <div className="flex-1 min-w-0">
               <SearchBar
                 onSearch={handleSearch}
@@ -354,7 +475,7 @@ export default function Index() {
               size="icon"
               onClick={requestLocation}
               disabled={locationLoading}
-              className="shrink-0 glass-panel h-10 w-10"
+              className="shrink-0 glass-panel h-10 w-10 min-w-[44px] min-h-[44px] touch-manipulation"
               aria-label="Use my location"
               title="Use my location"
             >
@@ -366,7 +487,7 @@ export default function Index() {
             </Button>
           </div>
           {(searchError || locationError) && (
-            <div className="absolute top-14 left-3 right-3 z-[1000] space-y-1">
+            <div className="absolute top-14 left-3 right-3 z-[1000] space-y-1 isolate pointer-events-none [&>*]:pointer-events-auto">
               {searchError && (
                 <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm px-4 py-2 rounded-lg">
                   {searchError}
@@ -379,7 +500,7 @@ export default function Index() {
               )}
             </div>
           )}
-          <div className="flex-1 relative min-h-0 w-full">
+          <div className="flex-1 relative min-h-0 w-full z-0">
             <MapView
               parkingData={displayParkingData}
               selectedLocation={selectedLocation}
@@ -390,19 +511,20 @@ export default function Index() {
               userLocation={userGeoLocation}
               onRouteSummary={setRouteSummary}
               onRouteInstructions={setRouteInstructions}
+              walkingRoute={walkingRoute}
               searchRadiusMeters={SEARCH_RADIUS_METERS}
               isMobile={true}
             />
           </div>
 
-          {/* Mobile bottom bar: flex child so it stays in view without scroll */}
-          <div className="shrink-0 flex justify-center p-3 pt-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {/* Mobile bottom bar: flex child, above map so it's clickable */}
+          <div className="shrink-0 relative z-[1000] flex justify-center p-3 pt-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] isolate">
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="secondary"
                   size="lg"
-                  className="gap-2 glass-panel shadow-lg px-6"
+                  className="gap-2 glass-panel shadow-lg px-6 touch-manipulation"
                   aria-label="Open parking locations"
                 >
                   <MapPin className="w-5 h-5" />

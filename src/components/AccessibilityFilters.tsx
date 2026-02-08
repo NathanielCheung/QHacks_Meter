@@ -1,7 +1,7 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Accessibility, Zap, Truck, X } from 'lucide-react';
+import { Accessibility, Zap, Truck, X, BadgeDollarSign } from 'lucide-react';
 import type { AccessibilityFilterState } from '@/data/parkingData';
 
 export type { AccessibilityFilterState };
@@ -26,6 +26,22 @@ const HEIGHT_OPTIONS = [
 export function AccessibilityFilters({ filters, onChange, embedded, compact, onClose }: AccessibilityFiltersProps) {
   const content = (
     <div className={compact ? 'p-4 space-y-6' : 'flex-1 overflow-y-auto p-4 space-y-6'}>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="free-parking"
+            checked={filters.freeParking}
+            onCheckedChange={checked =>
+              onChange({ ...filters, freeParking: !!checked })
+            }
+          />
+          <Label
+            htmlFor="free-parking"
+            className="flex items-center gap-2 text-sm font-medium cursor-pointer"
+          >
+            <BadgeDollarSign className="w-4 h-4 text-emerald-500" />
+            Free parking
+          </Label>
+        </div>
         <div className="flex items-center space-x-2">
           <Checkbox
             id="ev-charging"

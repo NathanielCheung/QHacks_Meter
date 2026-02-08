@@ -2,15 +2,17 @@ import { ParkingLocation, isLocationOpen } from '@/data/parkingData';
 import { ParkingCard } from './ParkingCard';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from './ui/button';
-import { Car, Warehouse, Clock, MapPin, X, Filter } from 'lucide-react';
+import { Car, Warehouse, Clock, MapPin, X, Filter, ChevronRight } from 'lucide-react';
 import type { RouteSummary } from './MapView';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AccessibilityFilters } from './AccessibilityFilters';
 import type { AccessibilityFilterState } from '@/data/parkingData';
 import { format } from 'date-fns';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-function sortByOpenAndAvailability(locations: ParkingLocation[], now: Date): ParkingLocation[] {
+/** Sort by most open spots to least (open locations first, then by availableSpots descending) */
+function sortByMostOpenFirst(locations: ParkingLocation[], now: Date): ParkingLocation[] {
   return [...locations].sort((a, b) => {
     const aOpen = isLocationOpen(a, now);
     const bOpen = isLocationOpen(b, now);
@@ -63,19 +65,25 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const now = new Date();
-  const sortedStreets = sortByOpenAndAvailability(streets, now);
-  const sortedLots = sortByOpenAndAvailability(lots, now);
+  const sortedStreets = sortByMostOpenFirst(streets, now);
+  const sortedLots = sortByMostOpenFirst(lots, now);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [streetsOpen, setStreetsOpen] = useState(false);
+  const [lotsOpen, setLotsOpen] = useState(false);
 
   useEffect(() => {
     if (selectedLocation && scrollContainerRef.current) {
+      const inStreets = sortedStreets.some(s => s.id === selectedLocation.id);
+      const inLots = sortedLots.some(l => l.id === selectedLocation.id);
+      if (inStreets) setStreetsOpen(true);
+      if (inLots) setLotsOpen(true);
       const el = cardRefs.current[selectedLocation.id];
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }
-  }, [selectedLocation]);
+  }, [selectedLocation, sortedStreets, sortedLots]);
 
   return (
     <aside
@@ -158,70 +166,92 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Scrollable content */}
+      {/* Scrollable content: dropdowns for Street Parking and Parking Lots (collapsed by default) */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-thin">
-        {/* Street Parking */}
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3 px-2">
-            <Car className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Street Parking
-            </h2>
-          </div>
-          <div className="space-y-1">
-            {sortedStreets.map(location => (
-              <div
-                key={location.id}
-                ref={el => {
-                  cardRefs.current[location.id] = el;
-                }}
+        <div className="p-4 space-y-1">
+          <Collapsible open={streetsOpen} onOpenChange={setStreetsOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:bg-secondary/50 hover:text-foreground transition-colors"
               >
-                <ParkingCard
-                  location={location}
-                  isSelected={selectedLocation?.id === location.id}
-                  onClick={() => onSelectLocation(location)}
-                  routeSummary={selectedLocation?.id === location.id ? routeSummary : null}
-                  onGetDirections={
-                    selectedLocation?.id === location.id && hasUserLocation
-                      ? onConfirmDirections
-                      : undefined
-                  }
+                <Car className="w-4 h-4 shrink-0" />
+                <span>Street Parking</span>
+                <span className="text-xs font-normal normal-case text-muted-foreground">
+                  ({sortedStreets.length})
+                </span>
+                <ChevronRight
+                  className={`w-4 h-4 ml-auto shrink-0 transition-transform ${streetsOpen ? 'rotate-0' : '-rotate-90'}`}
                 />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-1 pt-1">
+                {sortedStreets.map(location => (
+                  <div
+                    key={location.id}
+                    ref={el => {
+                      cardRefs.current[location.id] = el;
+                    }}
+                  >
+                    <ParkingCard
+                      location={location}
+                      isSelected={selectedLocation?.id === location.id}
+                      onClick={() => onSelectLocation(location)}
+                      routeSummary={selectedLocation?.id === location.id ? routeSummary : null}
+                      onGetDirections={
+                        selectedLocation?.id === location.id && hasUserLocation
+                          ? onConfirmDirections
+                          : undefined
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-        {/* Parking Lots */}
-        <div className="p-4 pt-0">
-          <div className="flex items-center gap-2 mb-3 px-2">
-            <Warehouse className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Parking Lots
-            </h2>
-          </div>
-          <div className="space-y-1">
-            {sortedLots.map(location => (
-              <div
-                key={location.id}
-                ref={el => {
-                  cardRefs.current[location.id] = el;
-                }}
+          <Collapsible open={lotsOpen} onOpenChange={setLotsOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:bg-secondary/50 hover:text-foreground transition-colors"
               >
-                <ParkingCard
-                  location={location}
-                  isSelected={selectedLocation?.id === location.id}
-                  onClick={() => onSelectLocation(location)}
-                  routeSummary={selectedLocation?.id === location.id ? routeSummary : null}
-                  onGetDirections={
-                    selectedLocation?.id === location.id && hasUserLocation
-                      ? onConfirmDirections
-                      : undefined
-                  }
+                <Warehouse className="w-4 h-4 shrink-0" />
+                <span>Parking Lots</span>
+                <span className="text-xs font-normal normal-case text-muted-foreground">
+                  ({sortedLots.length})
+                </span>
+                <ChevronRight
+                  className={`w-4 h-4 ml-auto shrink-0 transition-transform ${lotsOpen ? 'rotate-0' : '-rotate-90'}`}
                 />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-1 pt-1">
+                {sortedLots.map(location => (
+                  <div
+                    key={location.id}
+                    ref={el => {
+                      cardRefs.current[location.id] = el;
+                    }}
+                  >
+                    <ParkingCard
+                      location={location}
+                      isSelected={selectedLocation?.id === location.id}
+                      onClick={() => onSelectLocation(location)}
+                      routeSummary={selectedLocation?.id === location.id ? routeSummary : null}
+                      onGetDirections={
+                        selectedLocation?.id === location.id && hasUserLocation
+                          ? onConfirmDirections
+                          : undefined
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
       

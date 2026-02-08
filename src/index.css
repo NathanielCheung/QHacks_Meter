@@ -114,6 +114,11 @@
   .street-spot-marker {
     cursor: pointer;
   }
+
+  /* Search radius circle: visible but clicks pass through to street/lot layers */
+  .search-radius-circle {
+    pointer-events: none !important;
+  }
   
   .leaflet-popup-content-wrapper {
     border-radius: 12px;

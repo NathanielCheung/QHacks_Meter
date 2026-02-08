@@ -10,7 +10,7 @@ import {
 } from '@/data/parkingData';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
-import type { Marker as LeafletMarker, Layer } from 'leaflet';
+import type { Layer } from 'leaflet';
 import { MapPin, Car, Warehouse, Navigation } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -54,6 +54,8 @@ interface MapViewProps {
   onRouteSummary?: (summary: RouteSummary | null) => void;
   /** Called with turn-by-turn steps when a route is computed */
   onRouteInstructions?: (steps: RouteStep[] | null) => void;
+  /** Walking route from parking to searched destination (line + steps in panel) */
+  walkingRoute?: OSRMRouteResult | null;
   searchRadiusMeters?: number;
   isMobile?: boolean;
 }
@@ -114,19 +116,39 @@ function MapController({
   layerRefs: React.MutableRefObject<Record<string, Layer | null>>;
 }) {
   const map = useMap();
+  const hasCenteredOnUserForRouteRef = useRef(false);
+  const wasRouteConfirmedRef = useRef(false);
 
   useEffect(() => {
     if (selectedLocation) {
       if (routeConfirmed && userLocation) {
-        map.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+        wasRouteConfirmedRef.current = true;
+        // Center on user once when they first get directions; don't do it again until they end directions
+        if (!hasCenteredOnUserForRouteRef.current) {
+          hasCenteredOnUserForRouteRef.current = true;
+          map.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+        }
       } else {
-        const center = selectedDestination ?? { lat: selectedLocation.lat, lng: selectedLocation.lng };
-        map.setView([center.lat, center.lng], 18, { animate: true });
+        hasCenteredOnUserForRouteRef.current = false;
+        // When user clicks "End directions", don't auto-center; leave map where it is
+        if (wasRouteConfirmedRef.current) {
+          wasRouteConfirmedRef.current = false;
+        } else {
+          const center = selectedDestination ?? { lat: selectedLocation.lat, lng: selectedLocation.lng };
+          map.setView([center.lat, center.lng], 18, { animate: true });
+          const layer = layerRefs.current[selectedLocation.id] ?? null;
+          const layerWithPopup = layer as { openPopup?: () => void } | null;
+          if (layerWithPopup?.openPopup) layerWithPopup.openPopup();
+        }
       }
-    } else if (searchLocation) {
-      map.setView([searchLocation.lat, searchLocation.lng], 17, { animate: true });
+    } else {
+      hasCenteredOnUserForRouteRef.current = false;
+      wasRouteConfirmedRef.current = false;
+      if (searchLocation) {
+        map.setView([searchLocation.lat, searchLocation.lng], 17, { animate: true });
+      }
     }
-  }, [selectedLocation, selectedDestination, searchLocation, userLocation, routeConfirmed, map, layerRefs]);
+  }, [selectedLocation, selectedDestination, searchLocation, userLocation, routeConfirmed, map]);
 
   return null;
 }
@@ -253,6 +275,7 @@ export function MapView({
   userLocation,
   onRouteSummary,
   onRouteInstructions,
+  walkingRoute = null,
   searchRadiusMeters = 200,
   isMobile = false,
 }: MapViewProps) {
@@ -332,7 +355,7 @@ export function MapView({
           <button
             type="button"
             onClick={handleGetDirections}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-3 min-h-[44px] text-sm font-medium text-primary-foreground hover:bg-primary/90 touch-manipulation"
           >
             Get directions
           </button>
@@ -379,6 +402,17 @@ export function MapView({
           onRouteInstructions={onRouteInstructions}
         />
 
+        {walkingRoute?.coordinates?.length ? (
+          <Polyline
+            positions={walkingRoute.coordinates}
+            pathOptions={{
+              color: '#22C55E',
+              weight: 5,
+              opacity: 0.9,
+            }}
+          />
+        ) : null}
+
         {userLocation && (
           <Marker
             position={[userLocation.lat, userLocation.lng]}
@@ -406,6 +440,8 @@ export function MapView({
                 fillColor: '#3B82F6',
                 fillOpacity: 0.1,
                 weight: 2,
+                interactive: false,
+                className: 'search-radius-circle',
               }}
             />
             <Marker

@@ -118,6 +118,39 @@ export async function getRoute(
   }
 }
 
+/** Walking route (e.g. parking spot → searched destination). Full route with geometry and steps. */
+export async function getWalkingRoute(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<OSRMRouteResult | null> {
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  const url = `${OSRM_BASE}/walking/${coords}?overview=full&geometries=geojson&steps=true`;
+  try {
+    const res = await fetch(url);
+    const data: OSRMRouteResponse = await res.json();
+    if (data.code !== 'Ok' || !data.routes?.[0]) {
+      return null;
+    }
+    const route = data.routes[0];
+    const coordinates =
+      route.geometry?.coordinates?.map(([lng, lat]) => [lat, lng] as [number, number]) ?? [];
+    const rawSteps = route.legs?.[0]?.steps ?? [];
+    const steps: RouteStep[] = rawSteps.map((s, i) => ({
+      instruction: formatStepInstruction(s, i === 0, i === rawSteps.length - 1),
+      distance: s.distance != null ? formatDistance(s.distance) : undefined,
+      name: s.name || undefined,
+    }));
+    return {
+      distance: route.distance,
+      duration: route.duration,
+      coordinates,
+      steps,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;

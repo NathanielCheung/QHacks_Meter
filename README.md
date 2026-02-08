@@ -33,7 +33,8 @@ To run the **website with live sensor data** (Beamish Munro lot + Clergy St W ul
 3. **Start the app**: `npm run dev` and open the URL in the browser.
 4. **Flash the ESP32**: open `hardware/parking_sensor_esp32/parking_sensor_esp32.ino`, set `WIFI_SSID`, `WIFI_PASSWORD`, and `API_URL` (e.g. `http://YOUR_PC_IP:3001/api/parking`), then upload.
 
-Full steps and wiring: see [docs/HARDWARE_SENSOR_SETUP.md](docs/HARDWARE_SENSOR_SETUP.md).
+Full steps and wiring: see [docs/HARDWARE_SENSOR_SETUP.md](docs/HARDWARE_SENSOR_SETUP.md).  
+**Once the device is plugged in:** [docs/PLUG_IN_AND_SEND_TO_SITE.md](docs/PLUG_IN_AND_SEND_TO_SITE.md) (WiFi flow + optional USB serial bridge).
 
 ## How to edit this code
 

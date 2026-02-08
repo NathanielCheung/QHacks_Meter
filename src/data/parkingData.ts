@@ -160,7 +160,14 @@ export type AccessibilityFilterState = {
   evCharging: boolean;
   accessibleParking: boolean;
   minHeightClearanceM: number;
+  freeParking: boolean;
 };
+
+/** True if location is free: no pricing, or at least one tier has rate 0 (e.g. free on Sundays). */
+export function isFreeParking(loc: ParkingLocation): boolean {
+  if (!loc.pricing?.tiers?.length) return true;
+  return loc.pricing.tiers.some(t => t.rate === 0);
+}
 
 export function filterLotsByAccessibility(
   lots: ParkingLocation[],
@@ -680,12 +687,13 @@ export const initialParkingData: ParkingLocation[] = [
     id: 'beamish-munro-hall',
     name: 'Beamish Munro Hall',
     type: 'lot',
-    totalSpots: 30,
-    availableSpots: 5,
+    totalSpots: 3,
+    availableSpots: 3,
     lat: 44.228699442682995,
     lng: -76.49150134966044,
     address: '99 University Ave, Queen\'s University',
     evCharging: 'level2',
+    accessibleParking: true,
     operatingHours: [{ days: ALL_DAYS, start: '00:00', end: '23:59' }],
     pricing: { tiers: [{ startTime: '07:00', endTime: '18:00', rate: 2.5, unit: 'hour' }] },
     maxStayHours: 4,

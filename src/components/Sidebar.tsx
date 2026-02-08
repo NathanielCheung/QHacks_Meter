@@ -72,18 +72,21 @@ export function Sidebar({
   const [streetsOpen, setStreetsOpen] = useState(false);
   const [lotsOpen, setLotsOpen] = useState(false);
 
+  // Only auto-open section and scroll when selection changes. If we depended on sortedStreets/sortedLots
+  // they're new refs every render, so the effect would re-run and force sections open — clicking the
+  // trigger to close would immediately be undone.
   useEffect(() => {
-    if (selectedLocation && scrollContainerRef.current) {
-      const inStreets = sortedStreets.some(s => s.id === selectedLocation.id);
-      const inLots = sortedLots.some(l => l.id === selectedLocation.id);
-      if (inStreets) setStreetsOpen(true);
-      if (inLots) setLotsOpen(true);
-      const el = cardRefs.current[selectedLocation.id];
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+    if (!selectedLocation || !scrollContainerRef.current) return;
+    const inStreets = sortedStreets.some(s => s.id === selectedLocation.id);
+    const inLots = sortedLots.some(l => l.id === selectedLocation.id);
+    if (inStreets) setStreetsOpen(true);
+    if (inLots) setLotsOpen(true);
+    const el = cardRefs.current[selectedLocation.id];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [selectedLocation, sortedStreets, sortedLots]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when selection changes
+  }, [selectedLocation?.id]);
 
   return (
     <aside

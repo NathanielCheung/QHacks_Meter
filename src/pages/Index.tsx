@@ -358,7 +358,7 @@ export default function Index() {
         userLocation={chatUserLocation}
       />
 
-      {/* Directions bottom sheet (mobile only; opens as soon as user taps Get directions) */}
+      {/* Directions bottom sheet (mobile only; see-through, map stays interactive) */}
       {isMobile && (
         <Sheet
           open={mobileDirectionsOpen}
@@ -369,30 +369,23 @@ export default function Index() {
         >
           <SheetContent
             side="bottom"
-            overlayClassName="z-[9998]"
-            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/90 backdrop-blur-xl border-border/50 z-[9999]"
+            hideCloseButton
+            overlayClassName="z-[9998] bg-transparent pointer-events-none"
+            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/50 backdrop-blur-md border-border/40 z-[9999] shadow-none"
           >
-            <div className="p-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm flex flex-col gap-1">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-semibold text-foreground flex items-center gap-2 min-w-0">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
-                    <Navigation className="w-4 h-4" />
-                  </span>
-                  <span className="truncate">Directions</span>
-                  {routeSummary && (
-                    <span className="text-sm font-normal text-muted-foreground shrink-0">
-                      {routeSummary.duration} • {routeSummary.distance}
-                    </span>
-                  )}
-                </h2>
-              </div>
+            <div className="p-3 border-b border-border/40 shrink-0 bg-background/40 backdrop-blur-sm flex flex-col gap-0.5">
+              {routeSummary && (
+                <p className="text-sm font-medium text-foreground">
+                  {routeSummary.duration} • {routeSummary.distance}
+                </p>
+              )}
               {searchLocation && (
-                <p className="text-sm text-foreground break-words">
+                <p className="text-xs text-muted-foreground break-words">
                   {searchLocation.displayName}
                 </p>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col bg-background/60">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col bg-background/40 backdrop-blur-sm">
               {routeInstructions?.length ? (
                 <ul className="space-y-2 scrollbar-thin">
                   {routeInstructions.map((step, i) => (
@@ -441,7 +434,7 @@ export default function Index() {
                 </p>
               )}
             </div>
-            <div className="p-4 border-t border-border/50 shrink-0 bg-background/80 backdrop-blur-sm">
+            <div className="p-3 border-t border-border/40 shrink-0 bg-background/40 backdrop-blur-sm">
               <Button
                 variant="destructive"
                 size="sm"
@@ -500,14 +493,12 @@ export default function Index() {
               )}
             </div>
           )}
-          {/* Spacer so flex keeps bottom bar at bottom; map overlays via absolute */}
-          <div className="flex-1 min-h-0 w-full" aria-hidden />
-          {/* Map area: explicit top/bottom so height is never 0 on mobile (Leaflet needs real height) */}
+          {/* Map area: fixed height from viewport so it's never 0 on real phones (flex can be 0 there) */}
           <div
-            className="absolute left-0 right-0 w-full z-0 min-h-[50vh]"
+            className="w-full flex-1 min-h-0 flex flex-col z-0"
             style={{
-              top: '3.25rem',
-              bottom: 'calc(4rem + max(0.75rem, env(safe-area-inset-bottom)))',
+              height: 'calc(100vh - 12rem)',
+              minHeight: '50vh',
             }}
           >
             <MapView

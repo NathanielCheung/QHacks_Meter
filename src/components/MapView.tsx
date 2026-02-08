@@ -309,6 +309,12 @@ export function MapView({
   const { resolvedTheme } = useTheme();
   const layerRefs = useRef<Record<string, Layer | null>>({});
   const isDark = resolvedTheme !== 'light';
+  const [mobileMapReady, setMobileMapReady] = useState(false);
+  useEffect(() => {
+    if (!isMobile) return;
+    const t = setTimeout(() => setMobileMapReady(true), 400);
+    return () => clearTimeout(t);
+  }, [isMobile]);
 
   const STATUS_COLORS = {
     available: '#10B981',
@@ -391,14 +397,20 @@ export function MapView({
     );
   };
 
+  const showPlaceholder = isMobile && !mobileMapReady;
+  const bgStyle = { background: isDark ? '#1a1f2e' : '#e5e7eb' };
+
   return (
     <div className={`relative w-full h-full ${isMobile ? 'min-h-[200px]' : ''}`}>
+      {showPlaceholder ? (
+        <div className="w-full h-full min-h-[200px]" style={bgStyle} aria-hidden />
+      ) : (
       <MapContainer
         center={[KINGSTON_CENTER.lat, KINGSTON_CENTER.lng]}
         zoom={16}
         className="h-full w-full"
         zoomControl={true}
-        style={{ background: isDark ? '#1a1f2e' : '#e5e7eb' }}
+        style={bgStyle}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -568,6 +580,7 @@ export function MapView({
           );
         })}
       </MapContainer>
+      )}
       
       {/* Map Legend - desktop only */}
       {!isMobile && (

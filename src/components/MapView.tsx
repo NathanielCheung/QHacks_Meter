@@ -99,6 +99,33 @@ function createMarkerIcon(status: 'available' | 'low' | 'full', type: 'street' |
   });
 }
 
+// On mobile, Leaflet can get wrong size or not request tiles — invalidateSize + setView to force redraw.
+function MapResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    const run = () => {
+      map.invalidateSize();
+      const c = map.getCenter();
+      const z = map.getZoom();
+      map.setView(c, z, { animate: false });
+    };
+    map.whenReady(run);
+    const t1 = setTimeout(run, 150);
+    const t2 = setTimeout(run, 500);
+    const t3 = setTimeout(run, 1200);
+    window.addEventListener('resize', run);
+    window.addEventListener('orientationchange', run);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener('resize', run);
+      window.removeEventListener('orientationchange', run);
+    };
+  }, [map]);
+  return null;
+}
+
 // Component to handle map panning when selection or search changes
 function MapController({
   selectedLocation,
@@ -365,7 +392,7 @@ export function MapView({
   };
 
   return (
-    <div className="flex-1 relative">
+    <div className={`relative w-full h-full ${isMobile ? 'min-h-[200px]' : ''}`}>
       <MapContainer
         center={[KINGSTON_CENTER.lat, KINGSTON_CENTER.lng]}
         zoom={16}
@@ -377,11 +404,15 @@ export function MapView({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url={
             isDark
-              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-              : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+              : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
           }
+          subdomains="abcd"
+          maxZoom={19}
+          minZoom={2}
         />
 
+        <MapResizeHandler />
         <MapController
           selectedLocation={selectedLocation}
           selectedDestination={selectedDestination}

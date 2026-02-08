@@ -129,11 +129,13 @@
     margin: 0;
   }
 
-  /* Mobile touch-friendly map */
+  /* Mobile touch-friendly map; explicit height so map never gets 0 (e.g. Samsung S25) */
   @media (max-width: 767px) {
     .leaflet-container {
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      min-height: 60vh;
+      height: 100% !important;
     }
   }
 }

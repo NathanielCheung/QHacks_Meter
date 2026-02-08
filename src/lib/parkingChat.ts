@@ -77,6 +77,86 @@ function filterByLandmark(
 }
 
 /**
+ * Build a text summary of current parking data for Ollama context.
+ * Enables the LLM to answer availability, lot, location-based, and "closest to me" questions.
+ */
+export function buildParkingContextForOllama(
+  locations: ParkingLocation[],
+  now: Date = new Date(),
+  userLocation?: ChatUserLocation | null
+): string {
+  const lines: string[] = [];
+  lines.push(`Current parking data (as of ${now.toLocaleString('en-CA', { timeZone: 'America/Toronto' })}), downtown Kingston, Ontario.`);
+  lines.push('');
+
+  const streets = locations.filter((l) => l.type === 'street');
+  const lots = locations.filter((l) => l.type === 'lot');
+
+  if (streets.length > 0) {
+    lines.push('STREETS:');
+    for (const loc of streets) {
+      const open = isLocationOpen(loc, now);
+      const price = getCurrentPrice(loc, now);
+      const status = open
+        ? loc.availableSpots === 0
+          ? 'full'
+          : loc.totalSpots > 0 && (loc.availableSpots / loc.totalSpots) * 100 <= 20
+            ? 'low'
+            : 'available'
+        : 'closed';
+      const priceStr = price ? price.label : 'no casual rate';
+      lines.push(
+        `- ${loc.name}: ${loc.availableSpots} available of ${loc.totalSpots} total (${status}). ${priceStr}. Hours: ${getHoursDisplay(loc, now)}.`
+      );
+    }
+    lines.push('');
+  }
+
+  if (lots.length > 0) {
+    lines.push('LOTS / GARAGES:');
+    for (const loc of lots) {
+      const open = isLocationOpen(loc, now);
+      const price = getCurrentPrice(loc, now);
+      const pct = loc.totalSpots > 0 ? Math.round(((loc.totalSpots - loc.availableSpots) / loc.totalSpots) * 100) : 0;
+      const cars = loc.totalSpots - loc.availableSpots;
+      const status = open
+        ? loc.availableSpots === 0
+          ? 'full'
+          : loc.totalSpots > 0 && (loc.availableSpots / loc.totalSpots) * 100 <= 20
+            ? 'low'
+            : 'available'
+        : 'closed';
+      const priceStr = price ? price.label : 'no casual rate';
+      const extras: string[] = [];
+      if (loc.evCharging) extras.push('EV charging');
+      if (loc.accessibleParking) extras.push('accessible');
+      const extraStr = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+      lines.push(
+        `- ${loc.name}: ${loc.availableSpots} spots left of ${loc.totalSpots} total (${cars} cars, ${pct}% full). ${status}. ${priceStr}. Hours: ${getHoursDisplay(loc, now)}.${extraStr}`
+      );
+    }
+    lines.push('');
+  }
+
+  lines.push('NEAR LANDMARKS (within ~400 m):');
+  const queens = filterByLandmark(locations, "queen's");
+  const kgh = filterByLandmark(locations, 'kgh');
+  const water = filterByLandmark(locations, 'waterfront');
+  if (queens.length > 0) lines.push(`- Near Queen's University: ${queens.map((l) => l.name).join(', ')}.`);
+  if (kgh.length > 0) lines.push(`- Near Kingston General Hospital (KGH): ${kgh.map((l) => l.name).join(', ')}.`);
+  if (water.length > 0) lines.push(`- Near Kingston Waterfront: ${water.map((l) => l.name).join(', ')}.`);
+  lines.push('');
+
+  if (userLocation) {
+    lines.push(`USER'S LOCATION (use for "closest to me"): latitude ${userLocation.lat}, longitude ${userLocation.lng}.`);
+    lines.push('');
+  }
+
+  lines.push('NOTES: We do not have historical or prediction data (e.g. "usually busy", "best time", "get worse in the next hour"). We do not track whether a lot is "filling up" or "emptying" over time—only current counts. Map updates every few seconds from sensors; if the map says "full" but the user sees an empty spot, sensors may lag or someone just left.');
+  return lines.join('\n');
+}
+
+/**
  * Answer a natural-language question about Kingston parking.
  * Pass optional userLocation (e.g. from search) for "closest to me" answers.
  */
@@ -114,6 +194,27 @@ export function answerParkingQuestion(
     return "We don’t track whether a lot is filling up or emptying in real time—only how many spots are available right now. Check the map for current counts.";
   }
 
+  // --- Closest available to me (requires user location) — before landmark "near" ---
+  if (/\b(closest|nearest)\b.*\bme\b|\bclosest\s+(near|to)\s+me\b|parking\s+(closest|nearest)\s+(to\s+)?me\b/.test(q)) {
+    if (userLocation) {
+      const withSpots = locations.filter(
+        (l) => isLocationOpen(l, now) && l.availableSpots > 0
+      );
+      if (withSpots.length === 0) {
+        return "No spots are available right now near you. Try expanding your search on the map or another time.";
+      }
+      const sorted = [...withSpots].sort(
+        (a, b) =>
+          haversineDistance(userLocation.lat, userLocation.lng, a.lat, a.lng) -
+          haversineDistance(userLocation.lat, userLocation.lng, b.lat, b.lng)
+      );
+      const top = sorted[0];
+      const dist = Math.round(haversineDistance(userLocation.lat, userLocation.lng, top.lat, top.lng));
+      return `Closest available: ${top.name} (${top.availableSpots} spots), about ${dist} m away. Check the map for the exact location.`;
+    }
+    return "Search for an address on the map first—then I can tell you the closest available parking to that spot.";
+  }
+
   // --- Location-based: near Queen's, KGH, Waterfront, restaurants on Princess ---
   for (const key of Object.keys(LANDMARKS)) {
     if (q.includes(key) && (q.includes("near") || q.includes("close") || q.includes("parking") || q.includes("show"))) {
@@ -143,27 +244,6 @@ export function answerParkingQuestion(
         : "Princess Street parking is currently outside paid hours.";
       return `${status} Street parking runs along Princess—check the map for the exact stretch.`;
     }
-  }
-
-  // --- Closest available to me (requires user location) ---
-  if (/closest (available )?parking|closest (to )?me|nearest|parking (closest )?to me/.test(q)) {
-    if (userLocation) {
-      const withSpots = locations.filter(
-        (l) => isLocationOpen(l, now) && l.availableSpots > 0
-      );
-      if (withSpots.length === 0) {
-        return "No spots are available right now near you. Try expanding your search on the map or another time.";
-      }
-      const sorted = [...withSpots].sort(
-        (a, b) =>
-          haversineDistance(userLocation.lat, userLocation.lng, a.lat, a.lng) -
-          haversineDistance(userLocation.lat, userLocation.lng, b.lat, b.lng)
-      );
-      const top = sorted[0];
-      const dist = Math.round(haversineDistance(userLocation.lat, userLocation.lng, top.lat, top.lng));
-      return `Closest available: ${top.name} (${top.availableSpots} spots), about ${dist} m away. Check the map for the exact location.`;
-    }
-    return "Search for an address on the map first—then I can tell you the closest available parking to that spot.";
   }
 
   // --- Which street has the most available? ---

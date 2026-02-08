@@ -190,7 +190,7 @@ export default function Index() {
   }, [showDirectionsPanel]);
 
   return (
-    <div className="h-[100svh] max-h-[100dvh] flex flex-col overflow-hidden relative">
+    <div className="h-[100svh] max-h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden relative">
       {/* Desktop: directions (left, only when user gets directions) + map + parking list sidebar (right) */}
       {!isMobile && (
         <div className="flex-1 flex min-h-0 min-w-0">
@@ -500,7 +500,16 @@ export default function Index() {
               )}
             </div>
           )}
-          <div className="flex-1 relative min-h-0 w-full z-0">
+          {/* Spacer so flex keeps bottom bar at bottom; map overlays via absolute */}
+          <div className="flex-1 min-h-0 w-full" aria-hidden />
+          {/* Map area: explicit top/bottom so height is never 0 on mobile (Leaflet needs real height) */}
+          <div
+            className="absolute left-0 right-0 w-full z-0 min-h-[50vh]"
+            style={{
+              top: '3.25rem',
+              bottom: 'calc(4rem + max(0.75rem, env(safe-area-inset-bottom)))',
+            }}
+          >
             <MapView
               parkingData={displayParkingData}
               selectedLocation={selectedLocation}

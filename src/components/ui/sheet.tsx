@@ -52,12 +52,14 @@ interface SheetContentProps
     VariantProps<typeof sheetVariants> {
   overlayClassName?: string;
   hideCloseButton?: boolean;
+  /** When true, no overlay is rendered so content behind (e.g. map) stays interactive */
+  hideOverlay?: boolean;
 }
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, overlayClassName, hideCloseButton, children, ...props }, ref) => (
+  ({ side = "right", className, overlayClassName, hideCloseButton, hideOverlay, children, ...props }, ref) => (
     <SheetPortal>
-      <SheetOverlay className={overlayClassName} />
+      {!hideOverlay && <SheetOverlay className={overlayClassName} />}
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
         {!hideCloseButton && (

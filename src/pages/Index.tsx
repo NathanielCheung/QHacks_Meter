@@ -370,8 +370,8 @@ export default function Index() {
           <SheetContent
             side="bottom"
             hideCloseButton
-            overlayClassName="z-[9998] bg-transparent !pointer-events-none"
-            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/50 backdrop-blur-md border-border/40 z-[9999] shadow-none pointer-events-auto"
+            hideOverlay
+            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/50 backdrop-blur-md border-border/40 z-[9999] shadow-none"
           >
             <div className="p-3 border-b border-border/40 shrink-0 bg-background/40 backdrop-blur-sm flex flex-col gap-0.5">
               {routeSummary && (

@@ -22,7 +22,7 @@ Leave this running. You should see: `Parking sensor API at http://localhost:3001
 
 ### 2. Point the website at the API
 
-In the **project root** (not inside `server/`), create a file named `.env` if it doesn’t exist, with:
+In the **project root** (not inside `server/`), create a file named `.env` if it doesn’t exist, with (this file is gitignored — never commit it):
 
 ```env
 VITE_PARKING_API_URL=http://localhost:3001
@@ -47,7 +47,7 @@ Open the URL shown (e.g. http://localhost:5173). The app will poll the API every
    - **Arduino IDE**: File → Open → `hardware/parking_sensor_esp32/parking_sensor_esp32.ino`
    - Install the **ESP32 board support** if needed: Boards Manager → search “ESP32” → install.
 
-2. At the **top of the sketch**, set:
+2. At the **top of the sketch**, set (use your own values; **do not commit** real passwords to Git):
    - `WIFI_SSID` — your Wi‑Fi name  
    - `WIFI_PASSWORD` — your Wi‑Fi password  
    - `API_URL` — backend address the ESP32 can reach:

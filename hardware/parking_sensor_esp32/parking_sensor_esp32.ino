@@ -13,12 +13,12 @@
 #include <HTTPClient.h>
 
 // ----------------------------
-// WiFi & API (configure these)
-// NOTE: Do not push this file with real passwords to a public repo.
+// WiFi & API: set your own values before uploading. Do NOT commit real passwords.
+// Use a local file or Arduino IDE "Secret tab" / config that is gitignored.
 // ----------------------------
-const char* WIFI_SSID     = "Natedagreat";
-const char* WIFI_PASSWORD = "weelittleman123";
-const char* API_URL       = "http://192.168.1.100:3001/api/parking";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* API_URL       = "http://YOUR_SERVER_IP:3001/api/parking";
 
 // ----------------------------
 // Pin definitions (same as Arduino sketch)

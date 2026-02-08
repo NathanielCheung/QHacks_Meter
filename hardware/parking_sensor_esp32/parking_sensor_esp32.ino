@@ -16,9 +16,9 @@
 // WiFi & API (configure these)
 // NOTE: Do not push this file with real passwords to a public repo.
 // ----------------------------
-const char* WIFI_SSID     = "Natedagreat";
-const char* WIFI_PASSWORD = "weelittleman123";
-const char* API_URL       = "http://10.41.164.5:3001/api/parking";
+const char* WIFI_SSID     = "password";
+const char* WIFI_PASSWORD = "password";
+const char* API_URL       = "password";
 
 // ----------------------------
 // Pin definitions (same as Arduino sketch)

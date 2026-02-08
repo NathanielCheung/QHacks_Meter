@@ -5,12 +5,19 @@ interface StatusBadgeProps {
   available: number;
   total: number;
   showLabel?: boolean;
+  label?: string;
   size?: 'sm' | 'md';
 }
 
-export function StatusBadge({ available, total, showLabel = true, size = 'md' }: StatusBadgeProps) {
+export function StatusBadge({
+  available,
+  total,
+  showLabel = true,
+  label: customLabel,
+  size = 'md',
+}: StatusBadgeProps) {
   const status = getStatusColor(available, total);
-  
+
   return (
     <span
       className={cn(
@@ -30,7 +37,7 @@ export function StatusBadge({ available, total, showLabel = true, size = 'md' }:
           status === 'full' && 'bg-red-400'
         )}
       />
-      {showLabel && getStatusLabel(status)}
+      {showLabel && (customLabel ?? getStatusLabel(status))}
     </span>
   );
 }

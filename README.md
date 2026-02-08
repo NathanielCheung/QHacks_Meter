@@ -1,73 +1,80 @@
-# Welcome to your Lovable project
+# Kingston Smart Parking (QHacks Meter)
 
-## Project info
+Real-time parking availability in downtown Kingston.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Project Overview
 
-## How can I edit this code?
+This application displays parking availability for streets and lots in downtown Kingston, Ontario, with an interactive map and live status updates.
 
-There are several ways of editing your application.
+## How to run locally
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requirements: Node.js & npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
+cd QHacks_Meter
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
+# Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at http://localhost:5173 (or the port Vite prints).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### With hardware (ESP32 + sensors)
+
+To run the **website with live sensor data** (Beamish Munro lot + Clergy St W ultrasonic):
+
+1. **Start the API**: `cd server && npm install && npm start` (keeps running).
+2. **Set API URL**: create `.env` in the project root with `VITE_PARKING_API_URL=http://localhost:3001` (use your PC’s local IP if the ESP32 is on another machine).
+3. **Start the app**: `npm run dev` and open the URL in the browser.
+4. **Flash the ESP32**: open `hardware/parking_sensor_esp32/parking_sensor_esp32.ino`, set `WIFI_SSID`, `WIFI_PASSWORD`, and `API_URL` (e.g. `http://YOUR_PC_IP:3001/api/parking`), then upload.
+
+Full steps and wiring: see [docs/HARDWARE_SENSOR_SETUP.md](docs/HARDWARE_SENSOR_SETUP.md).
+
+## How to edit this code
+
+**Use your preferred IDE**
+
+Clone the repo and push changes to sync with your remote repository.
+
+**Edit directly in GitHub**
+
+- Navigate to the desired file(s)
+- Click the "Edit" button (pencil icon) at the top right
+- Make your changes and commit
 
 **Use GitHub Codespaces**
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Navigate to the main page of your repository
+- Click the "Code" button (green) near the top right
+- Select the "Codespaces" tab
+- Click "New codespace" to launch an environment
+- Edit files directly and commit/push when done
 
-## What technologies are used for this project?
-
-This project is built with:
+## Technologies
 
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Leaflet (maps)
+- React Query
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Build for production:
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+npm run build
+```
 
-Yes, you can!
+Deploy the `dist` folder to any static hosting service (Vercel, Netlify, GitHub Pages, etc.).
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Custom domain
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+To use a custom domain with your deployment, configure it in your hosting provider's settings (e.g., Project > Settings > Domains).

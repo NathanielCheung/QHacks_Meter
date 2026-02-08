@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Green ring (parking sign border) - dark green #006747 -->
+  <circle cx="16" cy="16" r="15" fill="#006747"/>
+  <circle cx="16" cy="16" r="11" fill="white"/>
+  <!-- Black P -->
+  <text x="16" y="21" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="black" text-anchor="middle">P</text>
+</svg>

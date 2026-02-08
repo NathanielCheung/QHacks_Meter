@@ -4,40 +4,40 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
     --primary: 160 84% 39%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 217 33% 25%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 25%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 25%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 25%;
-    --input: 217 33% 25%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
     --ring: 160 84% 39%;
     --radius: 0.75rem;
-    
+
     /* Status colors */
     --status-available: 160 84% 39%;
     --status-low: 38 92% 50%;
     --status-full: 0 84% 60%;
-    
+
     /* Sidebar */
-    --sidebar-background: 217 33% 14%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217 33% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 25%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
     --sidebar-ring: 160 84% 39%;
   }
 
@@ -107,6 +107,14 @@
     border: none !important;
   }
   
+  .street-parking-path {
+    cursor: pointer;
+  }
+
+  .street-spot-marker {
+    cursor: pointer;
+  }
+  
   .leaflet-popup-content-wrapper {
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -115,9 +123,21 @@
   .leaflet-popup-content {
     margin: 0;
   }
+
+  /* Mobile touch-friendly map */
+  @media (max-width: 767px) {
+    .leaflet-container {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+  }
 }
 
 @layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted)) transparent;

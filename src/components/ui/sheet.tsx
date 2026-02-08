@@ -60,7 +60,17 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
   ({ side = "right", className, overlayClassName, hideCloseButton, hideOverlay, children, ...props }, ref) => (
     <SheetPortal>
       {!hideOverlay && <SheetOverlay className={overlayClassName} />}
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...(hideOverlay
+          ? {
+              onPointerDownOutside: (e: { preventDefault: () => void }) => e.preventDefault(),
+              disableOutsidePointerEvents: false,
+            }
+          : {})}
+        {...props}
+      >
         {children}
         {!hideCloseButton && (
           <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">

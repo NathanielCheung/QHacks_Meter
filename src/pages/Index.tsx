@@ -9,7 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { List, Locate, Loader2, Navigation, X } from 'lucide-react';
+import { List, Locate, Loader2, MapPin, Navigation, X } from 'lucide-react';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import {
   ParkingLocation,
@@ -151,13 +151,15 @@ export default function Index() {
 
   const showDirectionsPanel = !!(routeSummary && routeInstructions?.length);
   const directionsPanelOpen = directionsSheetOpen && showDirectionsPanel;
+  /** On mobile, open directions sheet as soon as user requested directions (show loading until route loads) */
+  const mobileDirectionsOpen = directionsSheetOpen && routeConfirmed;
 
   useEffect(() => {
     if (!showDirectionsPanel) setDirectionsSheetOpen(false);
   }, [showDirectionsPanel]);
 
   return (
-    <div className="h-screen min-h-[100dvh] flex overflow-hidden relative">
+    <div className="h-[100svh] max-h-[100dvh] flex flex-col overflow-hidden relative">
       {/* Desktop: directions sidebar (left) + map + parking list sidebar */}
       {!isMobile && (
         <>
@@ -284,13 +286,16 @@ export default function Index() {
         userLocation={chatUserLocation}
       />
 
-      {/* Directions bottom sheet (mobile only; desktop uses left sidebar above) */}
+      {/* Directions bottom sheet (mobile only; opens as soon as user taps Get directions) */}
       {isMobile && (
-        <Sheet open={directionsPanelOpen} onOpenChange={setDirectionsSheetOpen}>
-          <SheetContent side="bottom" className="h-[50vh] max-h-[400px] flex flex-col p-0 rounded-t-2xl">
-            <div className="p-4 border-b border-border/50 shrink-0">
+        <Sheet open={mobileDirectionsOpen} onOpenChange={setDirectionsSheetOpen}>
+          <SheetContent
+            side="bottom"
+            className="h-[45dvh] max-h-[380px] flex flex-col p-0 rounded-t-2xl bg-background/90 backdrop-blur-xl border-border/50 z-[1100]"
+          >
+            <div className="p-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm">
               <h2 className="font-semibold text-foreground flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
                   <Navigation className="w-4 h-4" />
                 </span>
                 Directions
@@ -301,28 +306,37 @@ export default function Index() {
                 )}
               </h2>
             </div>
-            <ul className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
-              {routeInstructions?.map((step, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="text-foreground">{step.instruction}</span>
-                    {step.distance && (
-                      <span className="ml-2 text-muted-foreground">{step.distance}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col bg-background/60">
+              {routeInstructions?.length ? (
+                <ul className="space-y-2 scrollbar-thin">
+                  {routeInstructions.map((step, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="text-foreground">{step.instruction}</span>
+                        {step.distance && (
+                          <span className="ml-2 text-muted-foreground">{step.distance}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground flex items-center gap-2 py-4">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  Loading directions…
+                </p>
+              )}
+            </div>
           </SheetContent>
         </Sheet>
       )}
 
-      {/* Mobile: map full screen, list in sheet */}
+      {/* Mobile: map full screen, locations button, directions sheet - no scroll */}
       {isMobile && (
-        <div className="flex-1 flex flex-col relative min-w-0 w-full">
+        <div className="flex-1 flex flex-col min-w-0 w-full min-h-0 overflow-hidden">
           <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2">
             <div className="flex-1 min-w-0">
               <SearchBar
@@ -365,32 +379,34 @@ export default function Index() {
               )}
             </div>
           )}
-          <MapView
-            parkingData={displayParkingData}
-            selectedLocation={selectedLocation}
-            onSelectLocation={handleSelectLocation}
-            selectedDestination={selectedDestination}
-            routeConfirmed={routeConfirmed}
-            searchLocation={searchLocation}
-            userLocation={userGeoLocation}
-            onRouteSummary={setRouteSummary}
-            onRouteInstructions={setRouteInstructions}
-            searchRadiusMeters={SEARCH_RADIUS_METERS}
-            isMobile={true}
-          />
+          <div className="flex-1 relative min-h-0 w-full">
+            <MapView
+              parkingData={displayParkingData}
+              selectedLocation={selectedLocation}
+              onSelectLocation={handleSelectLocation}
+              selectedDestination={selectedDestination}
+              routeConfirmed={routeConfirmed}
+              searchLocation={searchLocation}
+              userLocation={userGeoLocation}
+              onRouteSummary={setRouteSummary}
+              onRouteInstructions={setRouteInstructions}
+              searchRadiusMeters={SEARCH_RADIUS_METERS}
+              isMobile={true}
+            />
+          </div>
 
-          {/* Mobile bottom bar: List (Filter is inside sidebar header) */}
-          <div className="absolute bottom-4 left-3 right-3 z-[1000] flex justify-center safe-area-pb">
+          {/* Mobile bottom bar: flex child so it stays in view without scroll */}
+          <div className="shrink-0 flex justify-center p-3 pt-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="secondary"
                   size="lg"
                   className="gap-2 glass-panel shadow-lg px-6"
-                  aria-label="Parking list"
+                  aria-label="Open parking locations"
                 >
-                  <List className="w-5 h-5" />
-                  List ({totalAvailable})
+                  <MapPin className="w-5 h-5" />
+                  Locations ({totalAvailable})
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[85vh] overflow-hidden flex flex-col p-0">
